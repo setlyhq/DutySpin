@@ -25,32 +25,7 @@ class WelcomeScreen extends StatelessWidget {
               Widget header() {
                 return Column(
                   children: [
-                    Align(
-                      alignment: Alignment.topRight,
-                      child: Container(
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(22),
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppTheme.text.withValues(alpha: 0.08),
-                              blurRadius: 16,
-                              offset: const Offset(0, 10),
-                            ),
-                          ],
-                        ),
-                        child: IconButton(
-                          onPressed: () {
-                            // Visual-only for now; user asked for the exact screen.
-                          },
-                          icon: const Icon(Icons.nightlight_round, color: AppTheme.textMuted, size: 22),
-                          tooltip: 'Theme',
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 28),
+                    const SizedBox(height: 16),
                     Image.asset(
                       'assets/app_name.png',
                       height: 38,
@@ -59,7 +34,7 @@ class WelcomeScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 10),
                     const Text(
-                      'Harmony in your home,\none task at a time.',
+                      'For the things you share in life.',
                       textAlign: TextAlign.center,
                       style: TextStyle(fontSize: 18, color: AppTheme.textMuted, height: 1.45, fontWeight: FontWeight.w600),
                     ),

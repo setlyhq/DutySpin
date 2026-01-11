@@ -1,18 +1,20 @@
 import 'package:flutter/material.dart';
 
 class AppTheme {
-  static const Color background = Color(0xFFF6F7F9);
+  // Base background matches the lighter, airy dashboard look.
+  static const Color background = Color(0xFFF4F6FB);
   static const Color surface = Color(0xFFFFFFFF);
-  static const Color surfaceMuted = Color(0xFFEEF1F5);
-  static const Color border = Color(0xFFE3E8EF);
-  static const Color text = Color(0xFF0F172A);
-  static const Color textMuted = Color(0xFF64748B);
-  // Brand primary (used for primary CTA button)
-  static const Color primary = Color(0xFF6366F1);
-  static const Color primaryMuted = Color(0xFFEEF2FF);
+  static const Color surfaceMuted = Color(0xFFE7EDF7);
+  static const Color border = Color(0xFFE2E8F0);
+  static const Color text = Color(0xFF111827);
+  static const Color textMuted = Color(0xFF6B7280);
 
-  // Welcome screen CTA/button color (matches design reference)
-  static const Color welcomeCta = Color(0xFF1E88E5);
+  // Brand primary (used for primary CTA button & selected tab).
+  static const Color primary = Color(0xFF2563EB);
+  static const Color primaryMuted = Color(0xFFE0EDFF);
+
+  // Welcome screen CTA/button color (kept aligned with primary).
+  static const Color welcomeCta = Color(0xFF2563EB);
   static const Color warningBg = Color(0xFFFEF9C3);
   static const Color warningText = Color(0xFF92400E);
 
@@ -51,11 +53,12 @@ class AppTheme {
       ),
       cardTheme: CardThemeData(
         color: surface,
-        elevation: 0,
+        elevation: 12,
+        shadowColor: Colors.black.withValues(alpha: 0.06),
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(22),
-          side: const BorderSide(color: border),
+          borderRadius: BorderRadius.circular(32),
+          side: const BorderSide(color: Colors.transparent),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
@@ -93,6 +96,13 @@ class AppTheme {
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
           textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
         ),
+      ),
+      navigationBarTheme: const NavigationBarThemeData(
+        backgroundColor: surface,
+        elevation: 0,
+        indicatorColor: Colors.transparent,
+        surfaceTintColor: Colors.transparent,
+        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
       ),
       textTheme: base.textTheme.copyWith(
         titleLarge: const TextStyle(fontWeight: FontWeight.w900, color: text),

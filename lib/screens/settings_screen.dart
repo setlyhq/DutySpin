@@ -19,27 +19,58 @@ class SettingsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
     final you = state.roommates.where((r) => r.isYou).isNotEmpty ? state.roommates.firstWhere((r) => r.isYou) : null;
+    final canPop = Navigator.of(context).canPop();
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
       child: ListView(
         children: [
-          const Text('Settings', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: AppTheme.text)),
+          Row(
+            children: [
+              if (canPop)
+                IconButton(
+                  onPressed: () => Navigator.of(context).maybePop(),
+                  icon: const Icon(Icons.arrow_back_rounded, color: AppTheme.text),
+                  tooltip: 'Back',
+                ),
+              if (canPop) const SizedBox(width: 4),
+              const Expanded(
+                child: Text(
+                  'Settings',
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.w900,
+                    color: AppTheme.text,
+                    letterSpacing: -0.4,
+                  ),
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 12),
           Card(
             child: Padding(
               padding: const EdgeInsets.all(24),
               child: Row(
                 children: [
-                  AvatarChip(name: you?.name ?? 'You', size: 52),
+                  AvatarChip(name: you?.name ?? 'You', imageUrl: you?.avatarUrl, size: 52),
                   const SizedBox(width: 16),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      children: const [
-                        Text('You', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: AppTheme.text)),
-                        SizedBox(height: 4),
-                        Text('Edit Profile', style: TextStyle(color: AppTheme.primary, fontWeight: FontWeight.w800)),
+                      children: [
+                        Text(
+                          you?.name ?? 'You',
+                          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: AppTheme.text),
+                        ),
+                        const SizedBox(height: 4),
+                        GestureDetector(
+                          onTap: () => Navigator.of(context).pushNamed('/editProfile'),
+                          child: const Text(
+                            'Edit Profile',
+                            style: TextStyle(color: AppTheme.primary, fontWeight: FontWeight.w800),
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -60,7 +91,15 @@ class SettingsScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 24),
-          const Text('MY HOUSEHOLD', style: TextStyle(fontSize: 13, letterSpacing: 1, fontWeight: FontWeight.w900, color: AppTheme.textMuted)),
+          const Text(
+            'MY HOUSEHOLD',
+            style: TextStyle(
+              fontSize: 13,
+              letterSpacing: 1.4,
+              fontWeight: FontWeight.w900,
+              color: AppTheme.textMuted,
+            ),
+          ),
           const SizedBox(height: 10),
           Card(
             child: Column(
@@ -74,7 +113,15 @@ class SettingsScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 24),
-          const Text('NOTIFICATIONS & PREFERENCES', style: TextStyle(fontSize: 13, letterSpacing: 1, fontWeight: FontWeight.w900, color: AppTheme.textMuted)),
+          const Text(
+            'NOTIFICATIONS & PREFERENCES',
+            style: TextStyle(
+              fontSize: 13,
+              letterSpacing: 1.4,
+              fontWeight: FontWeight.w900,
+              color: AppTheme.textMuted,
+            ),
+          ),
           const SizedBox(height: 10),
           Card(
             child: Column(
@@ -100,7 +147,15 @@ class SettingsScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 24),
-          const Text('SUPPORT', style: TextStyle(fontSize: 13, letterSpacing: 1, fontWeight: FontWeight.w900, color: AppTheme.textMuted)),
+          const Text(
+            'SUPPORT',
+            style: TextStyle(
+              fontSize: 13,
+              letterSpacing: 1.4,
+              fontWeight: FontWeight.w900,
+              color: AppTheme.textMuted,
+            ),
+          ),
           const SizedBox(height: 10),
           Card(
             child: Column(
@@ -147,7 +202,9 @@ class SettingsScreen extends StatelessWidget {
                       messenger.showSnackBar(SnackBar(content: Text(e.toString())));
                       return;
                     }
-                    navigator.pushNamedAndRemoveUntil('/createOrJoin', (r) => false);
+                    // Stay within the main shell after leaving a room so
+                    // the bottom navigation remains visible.
+                    navigator.pushNamedAndRemoveUntil('/main', (r) => false);
                   },
                   child: const Text('Leave Room', style: TextStyle(color: AppTheme.textMuted, fontWeight: FontWeight.w900)),
                 ),

@@ -35,6 +35,7 @@ class CloudService {
 
   CollectionReference<Map<String, dynamic>> _membersCol(String roomId) => _roomDoc(roomId).collection('members');
   CollectionReference<Map<String, dynamic>> _choresCol(String roomId) => _roomDoc(roomId).collection('chores');
+  CollectionReference<Map<String, dynamic>> _requestsCol(String roomId) => _roomDoc(roomId).collection('requests');
 
   Future<String?> getMyRoomId() async {
     final u = await ensureSignedIn();
@@ -42,6 +43,27 @@ class CloudService {
     if (!snap.exists) return null;
     final data = snap.data();
     return (data?['roomId'] as String?);
+  }
+
+  /// Returns all rooms the current user belongs to.
+  ///
+  /// This queries rooms where the user's UID appears in the
+  /// `memberOrder` array, which is maintained on create/join/leave.
+  Future<List<Room>> listMyRooms() async {
+    final u = await ensureSignedIn();
+    final q = await _firestore
+        .collection('rooms')
+        .where('memberOrder', arrayContains: u.uid)
+        .get();
+
+    return q.docs.map((doc) {
+      final data = doc.data();
+      return Room(
+        id: doc.id,
+        name: (data['name'] as String?) ?? 'Home',
+        inviteCode: data['inviteCode'] as String?,
+      );
+    }).toList();
   }
 
   Future<void> setMyRoomId(String? roomId) async {
@@ -175,7 +197,15 @@ class CloudService {
       return snap.docs.map((d) {
         final data = d.data();
         final name = (data['name'] as String?) ?? 'Roommate';
-        return Roommate(id: d.id, name: name, isYou: d.id == _auth.currentUser?.uid);
+        final avatarUrl = data['avatarUrl'] as String?;
+        final email = data['email'] as String?;
+        return Roommate(
+          id: d.id,
+          name: name,
+          email: email,
+          avatarUrl: avatarUrl,
+          isYou: d.id == _auth.currentUser?.uid,
+        );
       }).toList();
     });
   }
@@ -190,10 +220,15 @@ class CloudService {
           .map((e) => ChoreHistoryEntry.fromJson(Map<String, dynamic>.from(e)))
             .toList();
 
+        final participantIds = (data['participantIds'] as List<dynamic>? ?? [])
+            .map((e) => e.toString())
+            .toList();
+
         return Chore(
           id: d.id,
           title: (data['title'] as String?) ?? 'Chore',
           createdAtIso: (data['createdAtIso'] as String?) ?? DateTime.now().toIso8601String(),
+          participantRoommateIds: participantIds,
           repeatText: (data['repeatText'] as String?),
           currentTurnRoommateId: (data['currentTurnId'] as String?) ?? '',
           nextTurnRoommateId: (data['nextTurnId'] as String?) ?? '',
@@ -201,6 +236,39 @@ class CloudService {
         );
       }).toList();
     });
+  }
+
+  Future<void> updateMyDisplayName({required String roomId, required String displayName}) async {
+    final u = await ensureSignedIn();
+    await _membersCol(roomId).doc(u.uid).set(
+      {
+        'name': displayName.trim().isEmpty ? 'You' : displayName.trim(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      },
+      SetOptions(merge: true),
+    );
+  }
+
+  Future<void> updateMyAvatarUrl({required String roomId, required String? avatarUrl}) async {
+    final u = await ensureSignedIn();
+    await _membersCol(roomId).doc(u.uid).set(
+      {
+        'avatarUrl': avatarUrl,
+        'updatedAt': FieldValue.serverTimestamp(),
+      },
+      SetOptions(merge: true),
+    );
+  }
+
+  Future<void> updateRoomName({required String roomId, required String name}) async {
+    final trimmed = name.trim();
+    await _roomDoc(roomId).set(
+      {
+        'name': trimmed.isEmpty ? 'My Home' : trimmed,
+        'updatedAt': FieldValue.serverTimestamp(),
+      },
+      SetOptions(merge: true),
+    );
   }
 
   Future<void> addChore({required String roomId, required String title, String? repeatText}) async {
@@ -217,6 +285,7 @@ class CloudService {
       'title': title.trim(),
       'repeatText': repeatText,
       'createdAtIso': DateTime.now().toIso8601String(),
+      'participantIds': order,
       'currentTurnId': current,
       'nextTurnId': next,
       'history': <Map<String, dynamic>>[],
@@ -226,6 +295,44 @@ class CloudService {
 
   Future<void> removeChore({required String roomId, required String choreId}) async {
     await _choresCol(roomId).doc(choreId).delete();
+  }
+
+  Future<void> configureChore({
+    required String roomId,
+    required String choreId,
+    required String repeatText,
+    required List<String> participantRoommateIds,
+    required String firstTurnRoommateId,
+  }) async {
+    final doc = _choresCol(roomId).doc(choreId);
+
+    final participants = participantRoommateIds.toList();
+    if (participants.isEmpty) {
+      final roomSnap = await _roomDoc(roomId).get();
+      final roomData = roomSnap.data();
+      final order = (roomData?['memberOrder'] as List<dynamic>? ?? []).map((e) => e.toString()).toList();
+      participants.addAll(order);
+    }
+
+    var first = firstTurnRoommateId;
+    if (!participants.contains(first) && participants.isNotEmpty) {
+      first = participants.first;
+    }
+
+    final idx = participants.indexOf(first);
+    final safeIdx = idx >= 0 ? idx : 0;
+    final nextIdx = (safeIdx + 1) % participants.length;
+
+    await doc.set(
+      {
+        'repeatText': repeatText.trim().isEmpty ? 'Weekly' : repeatText.trim(),
+        'participantIds': participants,
+        'currentTurnId': participants[safeIdx],
+        'nextTurnId': participants[nextIdx],
+        'updatedAt': FieldValue.serverTimestamp(),
+      },
+      SetOptions(merge: true),
+    );
   }
 
   Future<void> markChoreDone({required String roomId, required String choreId, required String expectedCurrentId}) async {
@@ -238,9 +345,6 @@ class CloudService {
       final roomData = roomSnap.data();
       if (roomData == null) throw StateError('Room not found');
 
-      final order = (roomData['memberOrder'] as List<dynamic>? ?? []).map((e) => e.toString()).toList();
-      if (order.isEmpty) order.add(u.uid);
-
       final choreSnap = await tx.get(choreRef);
       final choreData = choreSnap.data();
       if (choreData == null) throw StateError('Chore not found');
@@ -249,6 +353,12 @@ class CloudService {
       if (current != expectedCurrentId) {
         throw StateError('Already completed or updated.');
       }
+
+      var order = (choreData['participantIds'] as List<dynamic>? ?? []).map((e) => e.toString()).toList();
+      if (order.isEmpty) {
+        order = (roomData['memberOrder'] as List<dynamic>? ?? []).map((e) => e.toString()).toList();
+      }
+      if (order.isEmpty) order.add(u.uid);
 
       final idx = order.indexOf(current);
       final safeIdx = idx >= 0 ? idx : 0;
@@ -271,6 +381,39 @@ class CloudService {
         'history': history.take(20).toList(),
         'updatedAt': FieldValue.serverTimestamp(),
       });
+    });
+  }
+
+  Stream<List<DutyRequest>> watchRequests(String roomId) {
+    return _requestsCol(roomId).orderBy('createdAtIso', descending: true).snapshots().map((snap) {
+      return snap.docs.map((d) {
+        final data = d.data();
+        return DutyRequest(
+          id: d.id,
+          choreId: (data['choreId'] as String?) ?? '',
+          fromRoommateId: (data['fromRoommateId'] as String?) ?? '',
+          toRoommateId: (data['toRoommateId'] as String?) ?? '',
+          createdAtIso: (data['createdAtIso'] as String?) ?? DateTime.now().toIso8601String(),
+          note: data['note'] as String?,
+        );
+      }).toList();
+    });
+  }
+
+  Future<void> createRequest({
+    required String roomId,
+    required String choreId,
+    required String fromRoommateId,
+    required String toRoommateId,
+    String? note,
+  }) async {
+    await ensureSignedIn();
+    await _requestsCol(roomId).add({
+      'choreId': choreId,
+      'fromRoommateId': fromRoommateId,
+      'toRoommateId': toRoommateId,
+      'createdAtIso': DateTime.now().toIso8601String(),
+      'note': note,
     });
   }
 

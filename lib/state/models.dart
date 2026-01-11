@@ -1,15 +1,17 @@
 class Roommate {
-  Roommate({required this.id, required this.name, this.email, this.isYou = false});
+  Roommate({required this.id, required this.name, this.email, this.avatarUrl, this.isYou = false});
 
   final String id;
   final String name;
   final String? email;
+  final String? avatarUrl;
   final bool isYou;
 
   Map<String, dynamic> toJson() => {
         'id': id,
         'name': name,
         'email': email,
+      'avatarUrl': avatarUrl,
         'isYou': isYou,
       };
 
@@ -17,6 +19,7 @@ class Roommate {
         id: json['id'] as String,
         name: json['name'] as String,
         email: json['email'] as String?,
+      avatarUrl: json['avatarUrl'] as String?,
         isYou: (json['isYou'] as bool?) ?? false,
       );
 }
@@ -41,11 +44,48 @@ class ChoreHistoryEntry {
       );
 }
 
+class DutyRequest {
+  DutyRequest({
+    required this.id,
+    required this.choreId,
+    required this.fromRoommateId,
+    required this.toRoommateId,
+    required this.createdAtIso,
+    this.note,
+  });
+
+  final String id;
+  final String choreId;
+  final String fromRoommateId;
+  final String toRoommateId;
+  final String createdAtIso;
+  final String? note;
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'choreId': choreId,
+        'fromRoommateId': fromRoommateId,
+        'toRoommateId': toRoommateId,
+        'createdAtIso': createdAtIso,
+        'note': note,
+      };
+
+  static DutyRequest fromJson(Map<String, dynamic> json) => DutyRequest(
+        id: json['id'] as String,
+        choreId: json['choreId'] as String,
+        fromRoommateId: json['fromRoommateId'] as String,
+        toRoommateId: json['toRoommateId'] as String,
+        createdAtIso: json['createdAtIso'] as String,
+        note: json['note'] as String?,
+      );
+}
+
 class Chore {
   Chore({
     required this.id,
     required this.title,
     required this.createdAtIso,
+    required this.participantRoommateIds,
     required this.currentTurnRoommateId,
     required this.nextTurnRoommateId,
     required this.history,
@@ -55,6 +95,7 @@ class Chore {
   final String id;
   final String title;
   final String createdAtIso;
+  final List<String> participantRoommateIds;
   final String currentTurnRoommateId;
   final String nextTurnRoommateId;
   final List<ChoreHistoryEntry> history;
@@ -64,6 +105,7 @@ class Chore {
         'id': id,
         'title': title,
         'createdAtIso': createdAtIso,
+        'participantRoommateIds': participantRoommateIds,
         'repeatText': repeatText,
         'currentTurnRoommateId': currentTurnRoommateId,
         'nextTurnRoommateId': nextTurnRoommateId,
@@ -74,6 +116,9 @@ class Chore {
         id: json['id'] as String,
         title: json['title'] as String,
         createdAtIso: json['createdAtIso'] as String,
+        participantRoommateIds: (json['participantRoommateIds'] as List<dynamic>? ?? [])
+          .map((e) => e.toString())
+          .toList(),
         repeatText: json['repeatText'] as String?,
         currentTurnRoommateId: json['currentTurnRoommateId'] as String,
         nextTurnRoommateId: json['nextTurnRoommateId'] as String,

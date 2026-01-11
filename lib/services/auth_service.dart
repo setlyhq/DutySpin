@@ -1,64 +1,89 @@
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 class AuthService {
-  AuthService({FirebaseAuth? auth}) : _auth = auth ?? FirebaseAuth.instance;
+  AuthService({FirebaseAuth? auth, GoogleSignIn? googleSignIn})
+      : _auth = auth ?? FirebaseAuth.instance,
+        // On web we use FirebaseAuth's Google provider directly, so
+        // GoogleSignIn is only needed for mobile platforms.
+        _googleSignIn = googleSignIn ??
+            GoogleSignIn(
+              clientId: kIsWeb
+                  ? null
+                  : '727478954656-8c2germ7sni096t4hl7epatsrhdubbta.apps.googleusercontent.com',
+            );
 
   final FirebaseAuth _auth;
+  final GoogleSignIn _googleSignIn;
 
-  static const _pendingEmailKey = 'dutyspin.pending_email_link_email.v1';
+  User? get currentUser => _auth.currentUser;
 
-  Future<void> storePendingEmail(String email) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_pendingEmailKey, email.trim().toLowerCase());
+  // Google Sign-In
+  Future<UserCredential> signInWithGoogle() async {
+    if (kIsWeb) {
+      // On web, delegate to Firebase Auth's Google provider. This uses the
+      // Firebase project's configured auth domain and avoids manual redirect
+      // URI setup in Google Cloud.
+      final provider = GoogleAuthProvider();
+      return await _auth.signInWithPopup(provider);
+    } else {
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      if (googleUser == null) {
+        throw Exception('Google sign-in was cancelled');
+      }
+
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      return await _auth.signInWithCredential(credential);
+    }
   }
 
-  Future<String?> loadPendingEmail() async {
-    final prefs = await SharedPreferences.getInstance();
-    final v = prefs.getString(_pendingEmailKey);
-    if (v == null || v.trim().isEmpty) return null;
-    return v.trim();
-  }
-
-  Future<void> clearPendingEmail() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_pendingEmailKey);
-  }
-
-  Future<void> sendEmailSignInLink({required String email}) async {
-    final e = email.trim().toLowerCase();
-    if (!e.contains('@')) throw ArgumentError('Enter a valid email');
-
-    // This URL must be added under Firebase Console -> Authentication -> Settings -> Authorized domains.
-    // For mobile deep-linking you normally configure an app link / dynamic link domain.
-    // DutySpin supports a "paste link" flow so deep-linking is optional.
-    final actionCodeSettings = ActionCodeSettings(
-      url: 'https://dutyspin.app/login',
-      handleCodeInApp: true,
-      androidPackageName: 'com.example.choreflow_flutter',
-      androidInstallApp: false,
-      androidMinimumVersion: '1',
-      iOSBundleId: 'com.example.choreflowFlutter',
+  // Phone OTP - Step 1: Send verification code
+  Future<void> verifyPhoneNumber({
+    required String phoneNumber,
+    required void Function(PhoneAuthCredential credential) verificationCompleted,
+    required void Function(FirebaseAuthException exception) verificationFailed,
+    required void Function(String verificationId, int? resendToken) codeSent,
+    required void Function(String verificationId) codeAutoRetrievalTimeout,
+    Duration timeout = const Duration(seconds: 60),
+  }) async {
+    await _auth.verifyPhoneNumber(
+      phoneNumber: phoneNumber,
+      timeout: timeout,
+      verificationCompleted: verificationCompleted,
+      verificationFailed: verificationFailed,
+      codeSent: codeSent,
+      codeAutoRetrievalTimeout: codeAutoRetrievalTimeout,
     );
-
-    await _auth.sendSignInLinkToEmail(email: e, actionCodeSettings: actionCodeSettings);
-    await storePendingEmail(e);
   }
 
-  bool isSignInWithEmailLink(String link) {
-    return _auth.isSignInWithEmailLink(link);
+  // Phone OTP - Step 2: Sign in with verification code
+  Future<UserCredential> signInWithPhoneOtp({
+    required String verificationId,
+    required String smsCode,
+  }) async {
+    final credential = PhoneAuthProvider.credential(
+      verificationId: verificationId,
+      smsCode: smsCode,
+    );
+    return await _auth.signInWithCredential(credential);
   }
 
-  Future<UserCredential> signInWithEmailLink({required String email, required String emailLink}) async {
-    final e = email.trim().toLowerCase();
-    if (e.isEmpty) throw ArgumentError('Email is required');
-    if (emailLink.trim().isEmpty) throw ArgumentError('Link is required');
-
-    final cred = await _auth.signInWithEmailLink(email: e, emailLink: emailLink.trim());
-    await clearPendingEmail();
-    return cred;
+  // Sign out
+  Future<void> signOut() async {
+    await Future.wait([
+      _auth.signOut(),
+      _googleSignIn.signOut(),
+    ]);
   }
 
+  // Anonymous sign-in for cloud service
   Future<void> ensureSignedInAnonymouslyIfNeeded() async {
     if (_auth.currentUser != null) return;
     await _auth.signInAnonymously();

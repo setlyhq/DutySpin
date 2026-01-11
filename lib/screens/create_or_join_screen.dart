@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../components/avatar_chip.dart';
+import '../state/app_state.dart';
 import '../theme.dart';
 
 class CreateOrJoinScreen extends StatefulWidget {
@@ -10,211 +13,97 @@ class CreateOrJoinScreen extends StatefulWidget {
 }
 
 class _CreateOrJoinScreenState extends State<CreateOrJoinScreen> {
-  bool showJoin = false;
-  final TextEditingController inviteController = TextEditingController();
-
-  @override
-  void dispose() {
-    inviteController.dispose();
-    super.dispose();
-  }
-
   @override
   Widget build(BuildContext context) {
-    final invite = inviteController.text.trim();
-    final canJoin = invite.length >= 3;
+    final state = context.watch<AppState>();
+    final you = state.roommates.where((r) => r.isYou).isNotEmpty ? state.roommates.firstWhere((r) => r.isYou) : null;
+    // Landing screen only; join flow handled on dedicated JoinRoom screen.
 
     return Scaffold(
-      backgroundColor: AppTheme.background,
+      backgroundColor: Colors.white,
       body: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            return SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
-              child: ConstrainedBox(
-                constraints: BoxConstraints(minHeight: constraints.maxHeight - 36),
-                child: Column(
-                  children: [
-                    const SizedBox(height: 6),
-                    const Text(
-                      'Create or Join a Room',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w500,
-                        color: AppTheme.textMuted,
-                      ),
-                    ),
-                    const SizedBox(height: 18),
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(22),
-                        border: Border.all(color: AppTheme.border),
-                      ),
-                      child: Column(
-                        children: [
-                          Row(
-                            children: [
-                              SizedBox(
-                                height: 40,
-                                width: 40,
-                                child: IconButton(
-                                  onPressed: () => Navigator.of(context).maybePop(),
-                                  icon: const Icon(Icons.arrow_back_rounded, color: AppTheme.text),
-                                  tooltip: 'Back',
-                                ),
-                              ),
-                              const Spacer(),
-                              Container(
-                                width: 8,
-                                height: 8,
-                                decoration: const BoxDecoration(
-                                  color: AppTheme.welcomeCta,
-                                  shape: BoxShape.circle,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 14),
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(18),
-                            child: SizedBox(
-                              height: 220,
-                              width: double.infinity,
-                              child: Image.asset(
-                                'assets/welcome_hero.png',
-                                fit: BoxFit.cover,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 22),
-                          const Text(
-                            'Welcome Home',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 30,
-                              fontWeight: FontWeight.w900,
-                              color: AppTheme.text,
-                              letterSpacing: -0.3,
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          const Text(
-                            'Organize your chores and build trust\nwith your housemates.',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(fontSize: 16, color: AppTheme.textMuted, height: 1.45, fontWeight: FontWeight.w500),
-                          ),
-                          const SizedBox(height: 20),
-                          _ActionTile(
-                            variant: _ActionTileVariant.primary,
-                            title: 'Create a New Room',
-                            subtitle: "I'm setting up a new household.",
-                            onTap: () {
-                              Navigator.of(context).pushNamed('/setupRoom', arguments: const SetupRoomArgs.create());
-                            },
-                            trailing: _CircleIcon(
-                              background: Colors.white.withValues(alpha: 0.20),
-                              child: Stack(
-                                alignment: Alignment.center,
-                                children: const [
-                                  Icon(Icons.home_rounded, size: 22, color: Colors.white),
-                                  Positioned(
-                                    right: 3,
-                                    bottom: 3,
-                                    child: Icon(Icons.add_circle_rounded, size: 14, color: Colors.white),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 14),
-                          _ActionTile(
-                            variant: _ActionTileVariant.secondary,
-                            title: 'Join a Room',
-                            subtitle: 'I have an invite code or link.',
-                            onTap: () => setState(() => showJoin = true),
-                            trailing: const _CircleIcon(
-                              background: AppTheme.primaryMuted,
-                              child: Icon(Icons.qr_code_rounded, size: 22, color: AppTheme.welcomeCta),
-                            ),
-                          ),
-                          AnimatedSize(
-                            duration: const Duration(milliseconds: 220),
-                            curve: Curves.easeInOut,
-                            child: showJoin
-                                ? Padding(
-                                    padding: const EdgeInsets.only(top: 14),
-                                    child: Column(
-                                      children: [
-                                        TextField(
-                                          controller: inviteController,
-                                          textCapitalization: TextCapitalization.characters,
-                                          decoration: const InputDecoration(hintText: 'Invite code'),
-                                          onChanged: (_) => setState(() {}),
-                                        ),
-                                        const SizedBox(height: 12),
-                                        SizedBox(
-                                          width: double.infinity,
-                                          height: 52,
-                                          child: ElevatedButton(
-                                            style: ElevatedButton.styleFrom(
-                                              backgroundColor: AppTheme.welcomeCta,
-                                              foregroundColor: Colors.white,
-                                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
-                                              textStyle: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
-                                            ),
-                                            onPressed: canJoin
-                                                ? () {
-                                                    Navigator.of(context).pushNamed(
-                                                      '/setupRoom',
-                                                      arguments: SetupRoomArgs.join(inviteController.text.trim()),
-                                                    );
-                                                  }
-                                                : null,
-                                            child: const Text('Join'),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  )
-                                : const SizedBox.shrink(),
-                          ),
-                          const SizedBox(height: 18),
-                          Wrap(
-                            alignment: WrapAlignment.center,
-                            crossAxisAlignment: WrapCrossAlignment.center,
-                            spacing: 6,
-                            children: [
-                              const Text(
-                                'Already have an account?',
-                                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppTheme.textMuted),
-                              ),
-                              TextButton(
-                                onPressed: () {
-                                  Navigator.of(context).pushNamedAndRemoveUntil('/continue', (r) => false);
-                                },
-                                style: TextButton.styleFrom(
-                                  foregroundColor: AppTheme.welcomeCta,
-                                  padding: EdgeInsets.zero,
-                                  minimumSize: const Size(0, 0),
-                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                ),
-                                child: const Text('Log in', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 6),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                  ],
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Align(
+                alignment: Alignment.centerRight,
+                child: GestureDetector(
+                  onTap: () => Navigator.of(context).pushNamed('/settings'),
+                  child: AvatarChip(name: you?.name ?? 'You', imageUrl: you?.avatarUrl, size: 44),
                 ),
               ),
-            );
-          },
+              const SizedBox(height: 72),
+              const Text(
+                'Welcome Home',
+                textAlign: TextAlign.left,
+                style: TextStyle(
+                  fontSize: 40,
+                  fontWeight: FontWeight.w900,
+                  color: AppTheme.text,
+                  letterSpacing: -0.7,
+                  height: 1.1,
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'For the things you share in life.',
+                style: TextStyle(
+                  fontSize: 18,
+                  color: AppTheme.textMuted,
+                  height: 1.5,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 40),
+              _ActionTile(
+                variant: _ActionTileVariant.primary,
+                title: 'Create a space',
+                subtitle: 'Start sharing responsibilities',
+                onTap: () {
+                  Navigator.of(context).pushNamed('/setupRoom', arguments: const SetupRoomArgs.create());
+                },
+                trailing: const _CircleIcon(
+                  background: Colors.white,
+                  child: Icon(Icons.add_rounded, size: 28, color: AppTheme.welcomeCta),
+                ),
+              ),
+              const SizedBox(height: 14),
+              _ActionTile(
+                variant: _ActionTileVariant.secondary,
+                title: 'Join a shared space',
+                subtitle: 'Use an invite code',
+                onTap: () => Navigator.of(context).pushNamed('/joinRoom'),
+                trailing: const _CircleIcon(
+                  background: AppTheme.primaryMuted,
+                  child: Icon(Icons.qr_code_rounded, size: 22, color: AppTheme.welcomeCta),
+                ),
+              ),
+              const SizedBox(height: 8),
+              const SizedBox(height: 40),
+              Center(
+                child: GestureDetector(
+                  onTap: () {
+                    Navigator.of(context).pushNamed('/settings');
+                  },
+                  child: const Text.rich(
+                    TextSpan(
+                      text: 'Need help? ',
+                      style: TextStyle(fontSize: 14, color: AppTheme.textMuted),
+                      children: [
+                        TextSpan(
+                          text: 'View Guide',
+                          style: TextStyle(color: AppTheme.welcomeCta, fontWeight: FontWeight.w700),
+                        ),
+                      ],
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -246,12 +135,12 @@ class _ActionTile extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(28),
         child: Ink(
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 22),
           decoration: BoxDecoration(
             color: isPrimary ? AppTheme.welcomeCta : Colors.white,
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(28),
             border: Border.all(color: isPrimary ? Colors.transparent : AppTheme.border),
             boxShadow: isPrimary
                 ? [
@@ -315,8 +204,8 @@ class _CircleIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 50,
-      height: 50,
+      width: 64,
+      height: 64,
       decoration: BoxDecoration(color: background, shape: BoxShape.circle),
       child: Center(child: child),
     );
